@@ -4,6 +4,7 @@
 package pty
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"syscall"
@@ -14,8 +15,8 @@ import (
 // corresponding pty.
 //
 // Starts the process in a new session and sets the controlling terminal.
-func Start(cmd *exec.Cmd) (*os.File, error) {
-	return StartWithSize(cmd, nil)
+func Start(cmd *exec.Cmd, b *bytes.Buffer) (*os.File, error) {
+	return StartWithSize(cmd, nil, b)
 }
 
 // StartWithSize assigns a pseudo-terminal tty os.File to c.Stdin, c.Stdout,
@@ -24,13 +25,13 @@ func Start(cmd *exec.Cmd) (*os.File, error) {
 //
 // This will resize the pty to the specified size before starting the command.
 // Starts the process in a new session and sets the controlling terminal.
-func StartWithSize(cmd *exec.Cmd, ws *Winsize) (*os.File, error) {
+func StartWithSize(cmd *exec.Cmd, ws *Winsize, b *bytes.Buffer) (*os.File, error) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Setsid = true
 	cmd.SysProcAttr.Setctty = true
-	return StartWithAttrs(cmd, ws, cmd.SysProcAttr)
+	return StartWithAttrs(cmd, ws, cmd.SysProcAttr, b)
 }
 
 // StartWithAttrs assigns a pseudo-terminal tty os.File to c.Stdin, c.Stdout,
@@ -42,7 +43,7 @@ func StartWithSize(cmd *exec.Cmd, ws *Winsize) (*os.File, error) {
 //
 // This should generally not be needed. Used in some edge cases where it is needed to create a pty
 // without a controlling terminal.
-func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr) (*os.File, error) {
+func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr, b *bytes.Buffer) (*os.File, error) {
 	pty, tty, err := Open()
 	if err != nil {
 		return nil, err
@@ -55,7 +56,9 @@ func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr) (*os.F
 			return nil, err
 		}
 	}
-	if c.Stdout == nil {
+	if b != nil {
+		c.Stdout = b
+	} else if c.Stdout == nil {
 		c.Stdout = tty
 	}
 	if c.Stderr == nil {
