@@ -1,3 +1,3 @@
-module github.com/creack/pty
+module github.com/zyedidia/pty
 
 go 1.13
